@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { getDashboardData } from "@/lib/calibration";
+import { expireStalePredictions } from "@/lib/judgments";
 
 import { CalibrationChart, DomainChart } from "./charts";
 
@@ -8,6 +9,7 @@ import { CalibrationChart, DomainChart } from "./charts";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  await expireStalePredictions(); // 延惰到期扫描，必须在统计待处理/校准前执行
   const { buckets, domains, pending, verifiedCount } = await getDashboardData();
 
   return (

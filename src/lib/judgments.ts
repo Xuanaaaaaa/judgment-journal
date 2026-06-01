@@ -4,6 +4,7 @@ import {
   desc,
   eq,
   isNotNull,
+  lt,
   lte,
   ne,
   or,
@@ -105,6 +106,26 @@ export async function listPending(): Promise<JudgmentListItem[]> {
       ),
     )
     .orderBy(sql`coalesce(${judgments.deadline}, ${judgments.nextReviewDate}) asc`);
+}
+
+// 到期提醒（design §5.4）：超过 deadline 满 30 天仍未验证的预测自动标记 expired。
+// 本工具无常驻 cron，在页面加载时延惰调用。UPDATE 幂等，多页面重复调用无副作用。
+const AUTO_EXPIRE_DAYS = 30;
+
+export async function expireStalePredictions(): Promise<number> {
+  const cutoff = addDays(todayLocal(), -AUTO_EXPIRE_DAYS);
+  const rows = await db
+    .update(judgments)
+    .set({ status: "expired", updatedAt: new Date() })
+    .where(
+      and(
+        eq(judgments.type, "prediction"),
+        eq(judgments.status, "pending"),
+        lt(judgments.deadline, cutoff),
+      ),
+    )
+    .returning({ id: judgments.id });
+  return rows.length;
 }
 
 export type ListFilters = {

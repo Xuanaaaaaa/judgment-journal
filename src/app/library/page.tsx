@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import {
+  expireStalePredictions,
   listDomains,
   listJudgments,
   listPending,
@@ -70,6 +71,7 @@ export default async function LibraryPage({
     domain: first(sp.domain),
   };
   const due = first(sp.due) === "1";
+  await expireStalePredictions(); // 延惰到期扫描，必须在读取列表/待处理前执行
   const [pending, items, domains] = await Promise.all([
     listPending(),
     listJudgments({ ...filters, due }),
