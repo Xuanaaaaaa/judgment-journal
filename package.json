@@ -2,13 +2,33 @@
   "name": "judgment-journal",
   "version": "0.1.0",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "electron:dev": "concurrently -k \"next dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:prep": "rm -rf .next/standalone/.next/static .next/standalone/public && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public && cp .env .next/standalone/.env",
+    "dist": "next build && npm run electron:prep && electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.judgmentjournal.app",
+    "productName": "Judgment Journal",
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "afterPack": "electron/after-pack.js",
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "target": "dir",
+      "identity": null
+    }
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.48",
@@ -33,10 +53,14 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^10.0.1",
     "drizzle-kit": "^0.31.10",
+    "electron": "^42.3.0",
+    "electron-builder": "^26.8.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wait-on": "^9.0.10"
   }
 }
