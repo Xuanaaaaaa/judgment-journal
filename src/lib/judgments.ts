@@ -1,4 +1,14 @@
-import { and, arrayContains, desc, eq, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  arrayContains,
+  desc,
+  eq,
+  isNotNull,
+  lte,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import { todayLocal } from "./date";
 import { db } from "./db";
@@ -39,6 +49,7 @@ export type CreateJudgmentInput = {
   deadline: string | null; // YYYY-MM-DD，仅 prediction
   reviewIntervalDays: number | null; // 仅 stance
   rawInput: string | null;
+  embedding: number[] | null; // 语义检索向量；未配置 embedding 时为 null
 };
 
 function addDays(isoDate: string, days: number): string {
@@ -66,6 +77,7 @@ export async function createJudgment(input: CreateJudgmentInput): Promise<string
       nextReviewDate: isStance ? addDays(today, interval) : null,
       status: isStance ? "active" : "pending",
       rawInput: input.rawInput,
+      embedding: input.embedding,
     })
     .returning({ id: judgments.id });
 
@@ -132,6 +144,49 @@ export async function listDomains(): Promise<string[]> {
     sql`select distinct unnest(domain) as d from judgments order by d`,
   );
   return rows.map((r) => r.d);
+}
+
+export type RelatedJudgment = {
+  id: string;
+  type: string;
+  title: string;
+  confidence: number | null;
+  status: string;
+  createdAt: Date;
+  similarity: number; // 余弦相似度 0–1
+};
+
+// 余弦相似度阈值：低于此值视为不相关，不展示。
+const SIMILARITY_THRESHOLD = 0.5;
+
+// 关联检索：用查询向量在 pgvector 中找余弦最近的历史判断（排除自身），过阈值后返回。
+export async function findRelated(
+  vector: number[],
+  excludeId: string,
+  limit = 5,
+): Promise<RelatedJudgment[]> {
+  const vec = `[${vector.join(",")}]`;
+  const rows = await db
+    .select({
+      id: judgments.id,
+      type: judgments.type,
+      title: judgments.title,
+      confidence: judgments.confidence,
+      status: judgments.status,
+      createdAt: judgments.createdAt,
+      similarity: sql<number>`1 - (${judgments.embedding} <=> ${vec}::vector)`,
+    })
+    .from(judgments)
+    .where(
+      and(
+        isNotNull(judgments.embedding),
+        ne(judgments.id, excludeId),
+      ),
+    )
+    .orderBy(sql`${judgments.embedding} <=> ${vec}::vector`)
+    .limit(limit);
+
+  return rows.filter((r) => r.similarity >= SIMILARITY_THRESHOLD);
 }
 
 export type JudgmentDetail = typeof judgments.$inferSelect;

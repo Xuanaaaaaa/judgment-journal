@@ -58,6 +58,29 @@ export async function parseJudgment(input: string): Promise<ParsedJudgment> {
   return object;
 }
 
+// 用一两句话总结新判断与若干历史判断的关系或矛盾（design §5.2 第4步）。
+export async function summarizeRelation(
+  newTitle: string,
+  related: { title: string; confidence: number | null }[],
+): Promise<string> {
+  const { model, providerOptions } = await getChatModel();
+  const list = related
+    .map(
+      (r, i) =>
+        `${i + 1}. ${r.title}${r.confidence != null ? `（置信度 ${r.confidence}）` : ""}`,
+    )
+    .join("\n");
+  const { text } = await generateText({
+    model,
+    providerOptions,
+    system:
+      "你是判断力训练助手。用一两句中文点出新判断与历史判断之间的关系——" +
+      "是相互印证、补充，还是矛盾/打架。直接给结论，不要寒暄，不要复述原文。",
+    prompt: `新判断：${newTitle}\n\n历史相关判断：\n${list}`,
+  });
+  return text.trim();
+}
+
 export async function testConnection(): Promise<{
   ok: boolean;
   message: string;

@@ -20,9 +20,12 @@ type SaveInput = {
   provider: string;
   baseUrl: string | null;
   model: string | null;
+  embeddingBaseUrl: string | null;
+  embeddingModel: string | null;
   defaultReviewIntervalDays: number;
   // 留空表示保留已存 key（不覆盖）
   apiKey?: string | null;
+  embeddingApiKey?: string | null;
 };
 
 export async function saveSettings(input: SaveInput): Promise<void> {
@@ -30,11 +33,16 @@ export async function saveSettings(input: SaveInput): Promise<void> {
     provider: input.provider,
     baseUrl: input.baseUrl,
     model: input.model,
+    embeddingBaseUrl: input.embeddingBaseUrl,
+    embeddingModel: input.embeddingModel,
     defaultReviewIntervalDays: input.defaultReviewIntervalDays,
     updatedAt: sql`now()`,
   };
   if (input.apiKey != null && input.apiKey !== "") {
     updateSet.apiKey = input.apiKey;
+  }
+  if (input.embeddingApiKey != null && input.embeddingApiKey !== "") {
+    updateSet.embeddingApiKey = input.embeddingApiKey;
   }
 
   await db
@@ -45,6 +53,9 @@ export async function saveSettings(input: SaveInput): Promise<void> {
       apiKey: input.apiKey ?? null,
       baseUrl: input.baseUrl,
       model: input.model,
+      embeddingBaseUrl: input.embeddingBaseUrl,
+      embeddingModel: input.embeddingModel,
+      embeddingApiKey: input.embeddingApiKey ?? null,
       defaultReviewIntervalDays: input.defaultReviewIntervalDays,
     })
     .onConflictDoUpdate({ target: appSettings.id, set: updateSet });

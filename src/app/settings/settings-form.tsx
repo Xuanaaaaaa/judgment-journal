@@ -23,6 +23,7 @@ import {
 import {
   saveSettingsAction,
   testConnectionAction,
+  testEmbeddingConnectionAction,
   type ActionResult,
 } from "./actions";
 
@@ -31,12 +32,15 @@ type Props = {
     provider: string;
     baseUrl: string;
     model: string;
+    embeddingBaseUrl: string;
+    embeddingModel: string;
     defaultReviewIntervalDays: number;
   };
   hasApiKey: boolean;
+  hasEmbeddingApiKey: boolean;
 };
 
-export function SettingsForm({ initial, hasApiKey }: Props) {
+export function SettingsForm({ initial, hasApiKey, hasEmbeddingApiKey }: Props) {
   const [saveState, saveFormAction, saving] = useActionState<
     ActionResult,
     FormData
@@ -44,11 +48,20 @@ export function SettingsForm({ initial, hasApiKey }: Props) {
   const [provider, setProvider] = useState(initial.provider);
   const [testing, startTest] = useTransition();
   const [testResult, setTestResult] = useState<ActionResult>(null);
+  const [embTesting, startEmbTest] = useTransition();
+  const [embTestResult, setEmbTestResult] = useState<ActionResult>(null);
 
   function runTest() {
     setTestResult(null);
     startTest(async () => {
       setTestResult(await testConnectionAction());
+    });
+  }
+
+  function runEmbTest() {
+    setEmbTestResult(null);
+    startEmbTest(async () => {
+      setEmbTestResult(await testEmbeddingConnectionAction());
     });
   }
 
@@ -111,6 +124,74 @@ export function SettingsForm({ initial, hasApiKey }: Props) {
               }
             />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Embedding 配置</CardTitle>
+          <CardDescription>
+            用于关联检索的向量生成，独立于对话模型（如 Qwen3-Embedding）。
+            一经选定不要随意更换——换模型需重新生成全部历史向量。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="embeddingBaseUrl">Base URL</Label>
+            <Input
+              id="embeddingBaseUrl"
+              name="embeddingBaseUrl"
+              defaultValue={initial.embeddingBaseUrl}
+              placeholder="https://api.siliconflow.cn/v1"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="embeddingModel">模型</Label>
+            <Input
+              id="embeddingModel"
+              name="embeddingModel"
+              defaultValue={initial.embeddingModel}
+              placeholder="Qwen/Qwen3-Embedding-8B"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="embeddingApiKey">API Key</Label>
+            <Input
+              id="embeddingApiKey"
+              name="embeddingApiKey"
+              type="password"
+              placeholder={
+                hasEmbeddingApiKey ? "已保存（留空则不修改）" : "填写 API Key"
+              }
+            />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={runEmbTest}
+              disabled={embTesting}
+            >
+              {embTesting ? "测试中…" : "测试 Embedding"}
+            </Button>
+            {embTestResult && (
+              <span
+                className={
+                  embTestResult.ok
+                    ? "text-sm text-foreground"
+                    : "text-sm text-destructive"
+                }
+              >
+                {embTestResult.message}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            「测试 Embedding」使用已保存的配置，请先保存再测试。
+          </p>
         </CardContent>
       </Card>
 

@@ -13,9 +13,12 @@ export default async function SettingsPage() {
           provider: settings?.provider ?? "openai-compatible",
           baseUrl: settings?.baseUrl ?? "",
           model: settings?.model ?? "",
+          embeddingBaseUrl: settings?.embeddingBaseUrl ?? "",
+          embeddingModel: settings?.embeddingModel ?? "",
           defaultReviewIntervalDays: settings?.defaultReviewIntervalDays ?? 90,
         }}
         hasApiKey={Boolean(settings?.apiKey)}
+        hasEmbeddingApiKey={Boolean(settings?.embeddingApiKey)}
       />
     </main>
   );

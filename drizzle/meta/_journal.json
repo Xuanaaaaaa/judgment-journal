@@ -15,6 +15,13 @@
       "when": 1780301404300,
       "tag": "0001_left_wonder_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780315643571,
+      "tag": "0002_medical_expediter",
+      "breakpoints": true
     }
   ]
 }

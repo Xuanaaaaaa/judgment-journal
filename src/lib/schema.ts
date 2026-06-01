@@ -13,10 +13,10 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
-// Embedding 向量维度：跟随所选 embedding 模型，不写死。
-// 由 env 配置（默认 1536 = OpenAI text-embedding-3-small）。
-// 修改此值需重新生成并执行 migration。
-const EMBEDDING_DIMENSIONS = Number(process.env.EMBEDDING_DIMENSIONS ?? 1536);
+// Embedding 向量维度：固定 1536（百炼 text-embedding-v4 / Qwen3-Embedding 均支持该维度）。
+// 单一来源，runtime 生成向量与建表列共用此常量，避免分歧。
+// 换 embedding 模型导致维度变化时：改此常量 + 重新生成执行 migration + 全量 re-embed。
+export const EMBEDDING_DIMENSIONS = 1536;
 
 // 判断主表
 export const judgments = pgTable(
@@ -133,6 +133,11 @@ export const appSettings = pgTable(
     apiKey: text("api_key"), // 明文存储（单用户本地工具；仅服务端使用）
     baseUrl: text("base_url"), // 仅 openai-compatible 需要
     model: text("model"),
+    // Embedding provider（独立于对话模型；OpenAI 兼容 /embeddings）。
+    // 一经选定不可随意换：换模型 = 全量 re-embed + 维度变化时改列。
+    embeddingBaseUrl: text("embedding_base_url"),
+    embeddingModel: text("embedding_model"),
+    embeddingApiKey: text("embedding_api_key"),
     defaultReviewIntervalDays: integer("default_review_interval_days")
       .notNull()
       .default(90),

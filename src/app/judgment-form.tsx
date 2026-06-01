@@ -14,7 +14,11 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { createJudgmentAction, type CreateResult } from "./actions";
+import {
+  createJudgmentAction,
+  type CreateResult,
+  type CreateSuccess,
+} from "./actions";
 
 export type JudgmentFormValues = {
   type: "prediction" | "stance";
@@ -29,7 +33,7 @@ export type JudgmentFormValues = {
 type Props = {
   initial: JudgmentFormValues;
   rawInput: string;
-  onCreated: () => void;
+  onCreated: (result: CreateSuccess) => void;
 };
 
 export function JudgmentForm({ initial, rawInput, onCreated }: Props) {
@@ -40,7 +44,7 @@ export function JudgmentForm({ initial, rawInput, onCreated }: Props) {
   const [type, setType] = useState(initial.type);
 
   useEffect(() => {
-    if (state?.ok) onCreated();
+    if (state?.ok) onCreated(state);
   }, [state, onCreated]);
 
   return (

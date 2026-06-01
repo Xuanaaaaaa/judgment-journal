@@ -1,8 +1,13 @@
 "use server";
 
-import { parseJudgment } from "@/lib/ai";
+import { parseJudgment, summarizeRelation } from "@/lib/ai";
 import { isValidIsoDate } from "@/lib/date";
-import { createJudgment } from "@/lib/judgments";
+import { generateEmbedding, isEmbeddingConfigured } from "@/lib/embedding";
+import {
+  createJudgment,
+  findRelated,
+  type RelatedJudgment,
+} from "@/lib/judgments";
 import type { ParsedJudgment } from "@/lib/schemas";
 
 export type ParseResult =
@@ -19,8 +24,15 @@ export async function parseJudgmentAction(input: string): Promise<ParseResult> {
   }
 }
 
+export type CreateSuccess = {
+  ok: true;
+  id: string;
+  related: RelatedJudgment[];
+  relationSummary: string | null;
+};
+
 export type CreateResult =
-  | { ok: true; id: string }
+  | CreateSuccess
   | { ok: false; message: string }
   | null;
 
@@ -69,8 +81,21 @@ export async function createJudgmentAction(
     reviewIntervalDays = n;
   }
 
+  // 提交时生成 embedding：未配置或生成失败都不阻塞录入，仅跳过关联检索。
+  let embedding: number[] | null = null;
+  if (await isEmbeddingConfigured()) {
+    try {
+      embedding = await generateEmbedding(
+        [title, reasoning, preMortem].filter(Boolean).join("\n"),
+      );
+    } catch (e) {
+      console.error("生成 embedding 失败，跳过关联检索：", e);
+    }
+  }
+
+  let id: string;
   try {
-    const id = await createJudgment({
+    id = await createJudgment({
       type,
       title,
       reasoning,
@@ -80,9 +105,25 @@ export async function createJudgmentAction(
       deadline,
       reviewIntervalDays,
       rawInput,
+      embedding,
     });
-    return { ok: true, id };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "保存失败" };
   }
+
+  // 关联检索 + AI 一句话总结：失败不影响录入成功，仅不展示关联。
+  let related: RelatedJudgment[] = [];
+  let relationSummary: string | null = null;
+  if (embedding) {
+    try {
+      related = await findRelated(embedding, id);
+      if (related.length > 0) {
+        relationSummary = await summarizeRelation(title, related);
+      }
+    } catch (e) {
+      console.error("关联检索失败：", e);
+    }
+  }
+
+  return { ok: true, id, related, relationSummary };
 }

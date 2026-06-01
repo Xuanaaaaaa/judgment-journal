@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 
-import { parseJudgmentAction } from "./actions";
+import { parseJudgmentAction, type CreateSuccess } from "./actions";
 import { JudgmentForm, type JudgmentFormValues } from "./judgment-form";
 
 const BLANK: JudgmentFormValues = {
@@ -32,11 +33,11 @@ export function EntryView() {
     initial: JudgmentFormValues;
     rawInput: string;
   } | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState<CreateSuccess | null>(null);
 
   function handleParse() {
     setParseError(null);
-    setSaved(false);
+    setSaved(null);
     startParse(async () => {
       const result = await parseJudgmentAction(rawText);
       if (!result.ok) {
@@ -61,7 +62,7 @@ export function EntryView() {
 
   function openManual() {
     setParseError(null);
-    setSaved(false);
+    setSaved(null);
     setForm({ initial: BLANK, rawInput: "" });
   }
 
@@ -82,10 +83,10 @@ export function EntryView() {
             key={form.rawInput || "manual"}
             initial={form.initial}
             rawInput={form.rawInput}
-            onCreated={() => {
+            onCreated={(result) => {
               setForm(null);
               setRawText("");
-              setSaved(true);
+              setSaved(result);
             }}
           />
           <Button variant="ghost" size="sm" onClick={reset}>
@@ -98,9 +99,7 @@ export function EntryView() {
 
   return (
     <div className="space-y-4">
-      {saved && (
-        <p className="text-sm text-foreground">已记录。可以继续录入下一条。</p>
-      )}
+      {saved && <SavedNotice result={saved} />}
       <Textarea
         value={rawText}
         onChange={(e) => setRawText(e.target.value)}
@@ -117,5 +116,48 @@ export function EntryView() {
         </Button>
       </div>
     </div>
+  );
+}
+
+// 录入成功后的提示：已记录 + 关联到的历史判断（含 AI 一句话总结）。
+function SavedNotice({ result }: { result: CreateSuccess }) {
+  return (
+    <Card>
+      <CardContent className="space-y-3 pt-6">
+        <p className="text-sm text-foreground">
+          已记录。
+          <Link href={`/judgment/${result.id}`} className="ml-1 underline">
+            查看详情
+          </Link>
+        </p>
+
+        {result.related.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">相关的历史判断</p>
+            {result.relationSummary && (
+              <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
+                {result.relationSummary}
+              </p>
+            )}
+            <ul className="space-y-1.5">
+              {result.related.map((r) => (
+                <li key={r.id}>
+                  <Link
+                    href={`/judgment/${r.id}`}
+                    className="flex items-center justify-between gap-3 rounded-md border p-2 text-sm transition-colors hover:bg-accent"
+                  >
+                    <span className="truncate">{r.title}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {r.confidence != null && `置信度 ${r.confidence} · `}
+                      相似 {Math.round(r.similarity * 100)}%
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
