@@ -1,0 +1,122 @@
+import { sql } from "drizzle-orm";
+import {
+  check,
+  date,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+  varchar,
+  vector,
+  type AnyPgColumn,
+} from "drizzle-orm/pg-core";
+
+// Embedding 向量维度：跟随所选 embedding 模型，不写死。
+// 由 env 配置（默认 1536 = OpenAI text-embedding-3-small）。
+// 修改此值需重新生成并执行 migration。
+const EMBEDDING_DIMENSIONS = Number(process.env.EMBEDDING_DIMENSIONS ?? 1536);
+
+// 判断主表
+export const judgments = pgTable(
+  "judgments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    type: varchar("type", { length: 20 }).notNull(), // 'prediction' | 'stance'
+    title: text("title").notNull(), // 一句话命题
+    reasoning: text("reasoning"), // 详细理由
+    preMortem: text("pre_mortem"), // "如果错了最可能因为什么"
+    confidence: integer("confidence"), // 0-100 置信度
+    domain: text("domain")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`), // 领域标签数组
+
+    // 预测类专用
+    deadline: date("deadline"), // 验证截止日期
+
+    // 认知立场类专用
+    reviewIntervalDays: integer("review_interval_days").default(90), // 复审周期（天）
+    nextReviewDate: date("next_review_date"), // 下次复审日期
+
+    // 状态
+    // prediction: pending / verified_correct / verified_wrong / expired / withdrawn
+    // stance: active / abandoned
+    status: varchar("status", { length: 30 }).notNull().default("pending"),
+    resolutionNotes: text("resolution_notes"), // 验证/最终复盘文字
+
+    // AI 相关
+    embedding: vector("embedding", { dimensions: EMBEDDING_DIMENSIONS }), // 语义检索向量
+    rawInput: text("raw_input"), // 用户原始自然语言输入
+
+    // 扩展预留：未来支持判断层级结构
+    parentId: uuid("parent_id").references((): AnyPgColumn => judgments.id),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("idx_judgments_type").on(t.type),
+    index("idx_judgments_status").on(t.status),
+    index("idx_judgments_deadline")
+      .on(t.deadline)
+      .where(sql`type = 'prediction'`),
+    index("idx_judgments_next_review")
+      .on(t.nextReviewDate)
+      .where(sql`type = 'stance'`),
+    index("idx_judgments_domain").using("gin", t.domain),
+    index("idx_judgments_embedding").using(
+      "hnsw",
+      t.embedding.op("vector_cosine_ops"),
+    ),
+    check("judgments_type_check", sql`${t.type} in ('prediction', 'stance')`),
+    check(
+      "judgments_confidence_check",
+      sql`${t.confidence} between 0 and 100`,
+    ),
+  ],
+);
+
+// 复审记录表（认知立场专用）
+export const reviewLogs = pgTable(
+  "review_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    judgmentId: uuid("judgment_id")
+      .notNull()
+      .references(() => judgments.id, { onDelete: "cascade" }),
+    previousConfidence: integer("previous_confidence"),
+    newConfidence: integer("new_confidence"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("idx_review_logs_judgment").on(t.judgmentId)],
+);
+
+// 验证记录表（预测类专用）
+export const verificationLogs = pgTable(
+  "verification_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    judgmentId: uuid("judgment_id")
+      .notNull()
+      .references(() => judgments.id, { onDelete: "cascade" }),
+    result: varchar("result", { length: 10 }).notNull(), // 'correct' | 'wrong'
+    notes: text("notes"),
+    evidenceSource: text("evidence_source"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("idx_verification_logs_judgment").on(t.judgmentId),
+    check("verification_result_check", sql`${t.result} in ('correct', 'wrong')`),
+  ],
+);
