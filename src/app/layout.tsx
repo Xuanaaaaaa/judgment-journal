@@ -28,6 +28,9 @@ export default function RootLayout({
             <Link href="/library" className="text-muted-foreground hover:text-foreground">
               判断库
             </Link>
+            <Link href="/dashboard" className="text-muted-foreground hover:text-foreground">
+              仪表盘
+            </Link>
             <Link href="/settings" className="text-muted-foreground hover:text-foreground">
               设置
             </Link>

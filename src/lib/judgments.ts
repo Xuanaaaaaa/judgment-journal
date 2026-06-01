@@ -99,6 +99,7 @@ export type ListFilters = {
   type?: string;
   status?: string;
   domain?: string;
+  due?: boolean; // 仅看已到期/到复审日的（与待处理区同口径，配合 type 使用）
 };
 
 // 主列表：按 type / status / domain 筛选，创建时间倒序。
@@ -109,6 +110,14 @@ export async function listJudgments(
   if (filters.type) conds.push(eq(judgments.type, filters.type));
   if (filters.status) conds.push(eq(judgments.status, filters.status));
   if (filters.domain) conds.push(arrayContains(judgments.domain, [filters.domain]));
+  if (filters.due) {
+    const today = todayLocal();
+    if (filters.type === "prediction") {
+      conds.push(lte(judgments.deadline, today));
+    } else if (filters.type === "stance") {
+      conds.push(lte(judgments.nextReviewDate, today));
+    }
+  }
 
   return db
     .select(listColumns)

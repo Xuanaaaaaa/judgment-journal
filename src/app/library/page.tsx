@@ -69,9 +69,10 @@ export default async function LibraryPage({
     status: first(sp.status),
     domain: first(sp.domain),
   };
+  const due = first(sp.due) === "1";
   const [pending, items, domains] = await Promise.all([
     listPending(),
-    listJudgments(filters),
+    listJudgments({ ...filters, due }),
     listDomains(),
   ]);
 
