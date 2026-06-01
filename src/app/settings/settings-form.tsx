@@ -96,7 +96,7 @@ export function SettingsForm({ initial, hasApiKey }: Props) {
               id="model"
               name="model"
               defaultValue={initial.model}
-              placeholder="deepseek-chat"
+              placeholder="deepseek-v4-flash"
             />
           </div>
 
