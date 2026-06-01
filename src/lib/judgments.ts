@@ -177,17 +177,19 @@ export type RelatedJudgment = {
   similarity: number; // 余弦相似度 0–1
 };
 
-// 余弦相似度阈值：低于此值视为不相关，不展示。
-const SIMILARITY_THRESHOLD = 0.5;
+// 余弦相似度阈值：关联检索要求高相关（0.5）；语义搜索更宽松（0.3）只滤明显噪声。
+const RELATE_THRESHOLD = 0.5;
+const SEARCH_THRESHOLD = 0.3;
 
-// 关联检索：用查询向量在 pgvector 中找余弦最近的历史判断（排除自身），过阈值后返回。
-export async function findRelated(
+// 用查询向量在 pgvector 中取余弦最近的判断（按相似度降序）。findRelated / semanticSearch 共用。
+async function querySimilar(
   vector: number[],
-  excludeId: string,
-  limit = 5,
+  opts: { limit: number; excludeId?: string },
 ): Promise<RelatedJudgment[]> {
   const vec = `[${vector.join(",")}]`;
-  const rows = await db
+  const conds = [isNotNull(judgments.embedding)];
+  if (opts.excludeId) conds.push(ne(judgments.id, opts.excludeId));
+  return db
     .select({
       id: judgments.id,
       type: judgments.type,
@@ -198,16 +200,28 @@ export async function findRelated(
       similarity: sql<number>`1 - (${judgments.embedding} <=> ${vec}::vector)`,
     })
     .from(judgments)
-    .where(
-      and(
-        isNotNull(judgments.embedding),
-        ne(judgments.id, excludeId),
-      ),
-    )
+    .where(and(...conds))
     .orderBy(sql`${judgments.embedding} <=> ${vec}::vector`)
-    .limit(limit);
+    .limit(opts.limit);
+}
 
-  return rows.filter((r) => r.similarity >= SIMILARITY_THRESHOLD);
+// 关联检索：找与新判断高相关的历史判断（排除自身），用于录入后提示。
+export async function findRelated(
+  vector: number[],
+  excludeId: string,
+  limit = 5,
+): Promise<RelatedJudgment[]> {
+  const rows = await querySimilar(vector, { limit, excludeId });
+  return rows.filter((r) => r.similarity >= RELATE_THRESHOLD);
+}
+
+// 语义搜索：用户在判断库里用自然语言搜，返回按相似度排序的判断。
+export async function semanticSearch(
+  vector: number[],
+  limit = 20,
+): Promise<RelatedJudgment[]> {
+  const rows = await querySimilar(vector, { limit });
+  return rows.filter((r) => r.similarity >= SEARCH_THRESHOLD);
 }
 
 export type JudgmentDetail = typeof judgments.$inferSelect;

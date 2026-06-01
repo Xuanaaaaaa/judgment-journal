@@ -1,15 +1,19 @@
 import Link from "next/link";
 
+import { generateEmbedding, isEmbeddingConfigured } from "@/lib/embedding";
 import {
   expireStalePredictions,
   listDomains,
   listJudgments,
   listPending,
+  semanticSearch,
   type JudgmentListItem,
+  type RelatedJudgment,
 } from "@/lib/judgments";
 import { STATUS_LABEL, TYPE_LABEL } from "@/lib/labels";
 
 import { Filters } from "./filters";
+import { SearchBox } from "./search-box";
 
 function Tag({ children }: { children: React.ReactNode }) {
   return (
@@ -52,6 +56,28 @@ function JudgmentRow({ item }: { item: JudgmentListItem }) {
   );
 }
 
+// 语义搜索结果行：RelatedJudgment 不含 domain/日期，额外展示相似度。
+function SearchResultRow({ item }: { item: RelatedJudgment }) {
+  return (
+    <Link
+      href={`/judgment/${item.id}`}
+      className="block rounded-lg border p-4 transition-colors hover:bg-accent"
+    >
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <span className="font-medium">{item.title}</span>
+        <span className="shrink-0 text-sm text-muted-foreground">
+          {item.confidence != null && `置信度 ${item.confidence} · `}
+          相似 {Math.round(item.similarity * 100)}%
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Tag>{TYPE_LABEL[item.type] ?? item.type}</Tag>
+        <Tag>{STATUS_LABEL[item.status] ?? item.status}</Tag>
+      </div>
+    </Link>
+  );
+}
+
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 // query 值可能是数组（如 ?type=a&type=b），统一取首个字符串。
@@ -65,13 +91,27 @@ export default async function LibraryPage({
   searchParams: SearchParams;
 }) {
   const sp = await searchParams;
+  const q = first(sp.q).trim();
+  await expireStalePredictions(); // 延惰到期扫描
+
+  // 搜索模式：有 q 时走语义搜索，与筛选/浏览互斥。
+  if (q) {
+    return (
+      <main className="mx-auto w-full max-w-3xl p-8">
+        <h1 className="mb-6 text-2xl font-semibold">判断库</h1>
+        {/* key=q：导航（含 Back/Forward）使 q 变化时重挂载，输入框同步到当前查询 */}
+        <SearchBox key={q} initial={q} />
+        <SearchResults q={q} />
+      </main>
+    );
+  }
+
   const filters = {
     type: first(sp.type),
     status: first(sp.status),
     domain: first(sp.domain),
   };
   const due = first(sp.due) === "1";
-  await expireStalePredictions(); // 延惰到期扫描，必须在读取列表/待处理前执行
   const [pending, items, domains] = await Promise.all([
     listPending(),
     listJudgments({ ...filters, due }),
@@ -81,6 +121,8 @@ export default async function LibraryPage({
   return (
     <main className="mx-auto w-full max-w-3xl p-8">
       <h1 className="mb-6 text-2xl font-semibold">判断库</h1>
+
+      <SearchBox initial="" />
 
       {pending.length > 0 && (
         <section className="mb-8">
@@ -110,5 +152,53 @@ export default async function LibraryPage({
         )}
       </section>
     </main>
+  );
+}
+
+// 语义搜索结果区：未配置 embedding / 生成失败 / 无结果分别给出提示。
+async function SearchResults({ q }: { q: string }) {
+  // 配置读取也纳入错误边界：设置/DB 读取失败时给通用失败提示，而非让页面抛错。
+  let configured: boolean;
+  let results: RelatedJudgment[] | null = null;
+  try {
+    configured = await isEmbeddingConfigured();
+    if (configured) {
+      const vector = await generateEmbedding(q);
+      results = await semanticSearch(vector);
+    }
+  } catch {
+    return (
+      <p className="py-12 text-center text-sm text-destructive">
+        搜索失败，请稍后重试。
+      </p>
+    );
+  }
+
+  if (!configured) {
+    return (
+      <p className="py-12 text-center text-sm text-muted-foreground">
+        语义搜索需要先在
+        <Link href="/settings" className="mx-1 underline">
+          设置
+        </Link>
+        里配置 Embedding。
+      </p>
+    );
+  }
+
+  if (!results || results.length === 0) {
+    return (
+      <p className="py-12 text-center text-sm text-muted-foreground">
+        没有语义相关的判断（仅能搜到配置 Embedding 之后录入的判断）。
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {results.map((item) => (
+        <SearchResultRow key={item.id} item={item} />
+      ))}
+    </div>
   );
 }
