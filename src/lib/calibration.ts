@@ -1,7 +1,7 @@
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 
 import { db } from "./db";
-import { judgments } from "./schema";
+import { judgments, verificationLogs } from "./schema";
 
 // 校准分析（纯代码，不需 LLM）。数据源 = judgments 主表的最终状态，
 // 每条已验证预测只计一次（verification_logs 可能多次修正，不用于统计）。
@@ -31,11 +31,20 @@ export type PendingOverview = {
   dueStances: number; // 已到复审日
 };
 
+// 累计 Brier 趋势：按验证时间排序，第 n 次验证后的累计平均 Brier 分。
+// Brier = (置信度/100 − 结果)²，结果对=1 错=0；越低越准。
+export type BrierPoint = {
+  seq: number; // 第几次验证
+  brier: number; // 截至该次的累计平均 Brier
+  date: string; // 该次验证日期 YYYY-MM-DD
+};
+
 export type DashboardData = {
   buckets: CalibrationBucket[];
   domains: DomainAccuracy[];
   pending: PendingOverview;
   verifiedCount: number; // 纳入校准的样本数
+  brierTrend: BrierPoint[];
 };
 
 // 置信度分桶边界：[50,60),[60,70),[70,80),[80,90),[90,100]。
@@ -115,6 +124,41 @@ export async function getDashboardData(): Promise<DashboardData> {
     }))
     .sort((a, b) => b.total - a.total);
 
+  // 3.5) Brier 趋势：每条已验证预测计一次（按 judgment 分组取最早验证时间），
+  // 结果用主表最终状态（与校准口径一致），按验证时间正序算累计平均 Brier。
+  const brierRows = await db
+    .select({
+      confidence: judgments.confidence,
+      status: judgments.status,
+      verifiedAt: sql<string>`min(${verificationLogs.createdAt})`,
+    })
+    .from(judgments)
+    .innerJoin(
+      verificationLogs,
+      eq(verificationLogs.judgmentId, judgments.id),
+    )
+    .where(
+      and(
+        eq(judgments.type, "prediction"),
+        inArray(judgments.status, VERIFIED),
+        isNotNull(judgments.confidence),
+      ),
+    )
+    .groupBy(judgments.id, judgments.confidence, judgments.status)
+    .orderBy(asc(sql`min(${verificationLogs.createdAt})`));
+
+  let brierSum = 0;
+  const brierTrend: BrierPoint[] = brierRows.map((r, i) => {
+    const p = (r.confidence as number) / 100;
+    const outcome = r.status === "verified_correct" ? 1 : 0;
+    brierSum += (p - outcome) ** 2;
+    return {
+      seq: i + 1,
+      brier: brierSum / (i + 1),
+      date: new Date(r.verifiedAt).toISOString().slice(0, 10),
+    };
+  });
+
   // 4) 待处理概览（与判断库待处理区同口径）。
   const today = sql`current_date`;
   const [pendingRow] = await db
@@ -132,5 +176,6 @@ export async function getDashboardData(): Promise<DashboardData> {
       dueStances: Number(pendingRow?.dueStances ?? 0),
     },
     verifiedCount,
+    brierTrend,
   };
 }

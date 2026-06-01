@@ -3,14 +3,15 @@ import Link from "next/link";
 import { getDashboardData } from "@/lib/calibration";
 import { expireStalePredictions } from "@/lib/judgments";
 
-import { CalibrationChart, DomainChart } from "./charts";
+import { BrierTrendChart, CalibrationChart, DomainChart } from "./charts";
 
 // 读实时 DB 数据，禁止构建时静态预渲染。
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   await expireStalePredictions(); // 延惰到期扫描，必须在统计待处理/校准前执行
-  const { buckets, domains, pending, verifiedCount } = await getDashboardData();
+  const { buckets, domains, pending, verifiedCount, brierTrend } =
+    await getDashboardData();
 
   return (
     <main className="mx-auto w-full max-w-3xl space-y-8 p-8">
@@ -49,6 +50,14 @@ export default async function DashboardPage() {
       <section>
         <h2 className="mb-3 font-medium">各领域准确率</h2>
         <DomainChart domains={domains} />
+      </section>
+
+      <section>
+        <h2 className="mb-1 font-medium">Brier 趋势</h2>
+        <p className="mb-3 text-xs text-muted-foreground">
+          累计平均 Brier 分，越低越准；下降说明校准在变好。
+        </p>
+        <BrierTrendChart data={brierTrend} />
       </section>
     </main>
   );

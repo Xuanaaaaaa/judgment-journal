@@ -14,7 +14,11 @@ import {
   YAxis,
 } from "recharts";
 
-import type { CalibrationBucket, DomainAccuracy } from "@/lib/calibration";
+import type {
+  BrierPoint,
+  CalibrationBucket,
+  DomainAccuracy,
+} from "@/lib/calibration";
 
 // 校准曲线：横轴=置信度桶中点，纵轴=该桶实际准确率，叠加 45° 完美校准参考线。
 export function CalibrationChart({ buckets }: { buckets: CalibrationBucket[] }) {
@@ -114,6 +118,43 @@ export function DomainChart({ domains }: { domains: DomainAccuracy[] }) {
           ))}
         </Bar>
       </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+// Brier 累计趋势：横轴=第几次验证，纵轴=累计平均 Brier（越低越准）。
+export function BrierTrendChart({ data }: { data: BrierPoint[] }) {
+  if (data.length === 0) {
+    return <Empty>暂无已验证的预测，验证一些预测后这里会显示 Brier 趋势。</Empty>;
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <LineChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+        <XAxis
+          type="number"
+          dataKey="seq"
+          domain={[1, "dataMax"]}
+          allowDecimals={false}
+          fontSize={12}
+        />
+        <YAxis domain={[0, 1]} ticks={[0, 0.25, 0.5, 0.75, 1]} fontSize={12} />
+        <Tooltip
+          formatter={(v) => [Number(v).toFixed(3), "累计 Brier"]}
+          labelFormatter={(seq, payload) =>
+            `第 ${seq} 次验证${payload?.[0] ? ` · ${payload[0].payload.date}` : ""}`
+          }
+        />
+        <Line
+          type="monotone"
+          dataKey="brier"
+          stroke="currentColor"
+          className="text-foreground"
+          strokeWidth={2}
+          dot={{ r: 3 }}
+        />
+      </LineChart>
     </ResponsiveContainer>
   );
 }
