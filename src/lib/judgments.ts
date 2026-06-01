@@ -2,7 +2,7 @@ import { and, arrayContains, desc, eq, lte, or, sql } from "drizzle-orm";
 
 import { todayLocal } from "./date";
 import { db } from "./db";
-import { judgments } from "./schema";
+import { judgments, reviewLogs, verificationLogs } from "./schema";
 
 // 列表展示用列（不取 embedding 向量，避免传输开销）。
 const listColumns = {
@@ -123,4 +123,151 @@ export async function listDomains(): Promise<string[]> {
     sql`select distinct unnest(domain) as d from judgments order by d`,
   );
   return rows.map((r) => r.d);
+}
+
+export type JudgmentDetail = typeof judgments.$inferSelect;
+export type VerificationLog = typeof verificationLogs.$inferSelect;
+export type ReviewLog = typeof reviewLogs.$inferSelect;
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isUuid(s: string): boolean {
+  return UUID_RE.test(s);
+}
+
+// 详情：取整行。id 非法（非 uuid 语法）时返回 undefined，由调用方 notFound()。
+// 注意：不 catch 查询本身——真实 DB 故障应当抛出，不能误当成「不存在」。
+export async function getJudgment(
+  id: string,
+): Promise<JudgmentDetail | undefined> {
+  if (!isUuid(id)) return undefined;
+  const [row] = await db
+    .select()
+    .from(judgments)
+    .where(eq(judgments.id, id))
+    .limit(1);
+  return row;
+}
+
+export async function getVerificationLogs(
+  judgmentId: string,
+): Promise<VerificationLog[]> {
+  return db
+    .select()
+    .from(verificationLogs)
+    .where(eq(verificationLogs.judgmentId, judgmentId))
+    .orderBy(desc(verificationLogs.createdAt));
+}
+
+export async function getReviewLogs(judgmentId: string): Promise<ReviewLog[]> {
+  return db
+    .select()
+    .from(reviewLogs)
+    .where(eq(reviewLogs.judgmentId, judgmentId))
+    .orderBy(desc(reviewLogs.createdAt));
+}
+
+// 验证预测：写 verification_logs + 更新主表状态/复盘笔记（事务保证一致）。
+// 仅对 status=pending 的 prediction 生效，否则报错。
+export async function verifyPrediction(input: {
+  id: string;
+  result: "correct" | "wrong";
+  notes: string | null;
+  evidenceSource: string | null;
+}): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [j] = await tx
+      .select({ type: judgments.type, status: judgments.status })
+      .from(judgments)
+      .where(eq(judgments.id, input.id))
+      .limit(1)
+      .for("update");
+    if (!j) throw new Error("判断不存在");
+    if (j.type !== "prediction") throw new Error("只有预测可以验证对错");
+    if (j.status !== "pending") throw new Error("该预测已验证或已关闭");
+
+    await tx.insert(verificationLogs).values({
+      judgmentId: input.id,
+      result: input.result,
+      notes: input.notes,
+      evidenceSource: input.evidenceSource,
+    });
+    await tx
+      .update(judgments)
+      .set({
+        status: input.result === "correct" ? "verified_correct" : "verified_wrong",
+        resolutionNotes: input.notes,
+        updatedAt: new Date(),
+      })
+      .where(eq(judgments.id, input.id));
+  });
+}
+
+// 复审认知立场：写 review_logs（记录前后置信度）+ 更新 confidence 与下次复审日。
+export async function reviewStance(input: {
+  id: string;
+  newConfidence: number;
+  notes: string | null;
+}): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [j] = await tx
+      .select({
+        type: judgments.type,
+        status: judgments.status,
+        confidence: judgments.confidence,
+        reviewIntervalDays: judgments.reviewIntervalDays,
+      })
+      .from(judgments)
+      .where(eq(judgments.id, input.id))
+      .limit(1)
+      .for("update");
+    if (!j) throw new Error("判断不存在");
+    if (j.type !== "stance") throw new Error("只有认知立场可以复审");
+    if (j.status !== "active") throw new Error("该立场已放弃");
+
+    await tx.insert(reviewLogs).values({
+      judgmentId: input.id,
+      previousConfidence: j.confidence,
+      newConfidence: input.newConfidence,
+      notes: input.notes,
+    });
+    const interval = j.reviewIntervalDays ?? 90;
+    await tx
+      .update(judgments)
+      .set({
+        confidence: input.newConfidence,
+        nextReviewDate: addDays(todayLocal(), interval),
+        updatedAt: new Date(),
+      })
+      .where(eq(judgments.id, input.id));
+  });
+}
+
+// 放弃认知立场：status→abandoned，备注存 resolution_notes。
+export async function abandonStance(input: {
+  id: string;
+  notes: string | null;
+}): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [j] = await tx
+      .select({ type: judgments.type, status: judgments.status })
+      .from(judgments)
+      .where(eq(judgments.id, input.id))
+      .limit(1)
+      .for("update");
+    if (!j) throw new Error("判断不存在");
+    if (j.type !== "stance") throw new Error("只有认知立场可以放弃");
+    if (j.status !== "active") throw new Error("该立场已放弃");
+
+    await tx
+      .update(judgments)
+      .set({
+        status: "abandoned",
+        resolutionNotes: input.notes,
+        nextReviewDate: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(judgments.id, input.id));
+  });
 }
