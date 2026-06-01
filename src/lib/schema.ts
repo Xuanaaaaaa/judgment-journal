@@ -120,3 +120,25 @@ export const verificationLogs = pgTable(
     check("verification_result_check", sql`${t.result} in ('correct', 'wrong')`),
   ],
 );
+
+// 应用配置（单用户，单行表：id 恒为 1）
+export const appSettings = pgTable(
+  "app_settings",
+  {
+    id: integer("id").primaryKey().default(1),
+    // 对话/解析 provider：'anthropic' | 'openai' | 'openai-compatible'
+    provider: varchar("provider", { length: 30 })
+      .notNull()
+      .default("openai-compatible"),
+    apiKey: text("api_key"), // 明文存储（单用户本地工具；仅服务端使用）
+    baseUrl: text("base_url"), // 仅 openai-compatible 需要
+    model: text("model"),
+    defaultReviewIntervalDays: integer("default_review_interval_days")
+      .notNull()
+      .default(90),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [check("app_settings_singleton", sql`${t.id} = 1`)],
+);
