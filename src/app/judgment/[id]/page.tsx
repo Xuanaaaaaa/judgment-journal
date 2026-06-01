@@ -9,6 +9,7 @@ import {
 import { STATUS_LABEL, TYPE_LABEL } from "@/lib/labels";
 
 import { JudgmentActions } from "./judgment-actions";
+import { StanceTimelineChart } from "./timeline-chart";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   if (value == null || value === "") return null;
@@ -22,6 +23,28 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 
 function fmt(d: Date) {
   return d.toLocaleString("zh-CN", { hour12: false });
+}
+
+function fmtDate(d: Date) {
+  return d.toLocaleDateString("zh-CN");
+}
+
+// 立场复审时间线：起点=首次复审前的置信度（即记录时的值；为 null 则省略起点，不伪造），
+// 其后每个点=该次复审后的新置信度。reviews 为倒序，这里转正序。
+function buildTimeline(
+  createdAt: Date,
+  reviews: { previousConfidence: number | null; newConfidence: number | null; createdAt: Date }[],
+): { label: string; confidence: number }[] {
+  const asc = [...reviews].reverse();
+  const start = asc[0]?.previousConfidence ?? null;
+  const points: { label: string; confidence: number }[] = [];
+  if (start != null) points.push({ label: fmtDate(createdAt), confidence: start });
+  for (const r of asc) {
+    if (r.newConfidence != null) {
+      points.push({ label: fmtDate(r.createdAt), confidence: r.newConfidence });
+    }
+  }
+  return points;
 }
 
 type Params = Promise<{ id: string }>;
@@ -40,6 +63,11 @@ export default async function JudgmentDetailPage({
     isPrediction ? getVerificationLogs(id) : Promise.resolve([]),
     isPrediction ? Promise.resolve([]) : getReviewLogs(id),
   ]);
+
+  // 至少 2 个点（初始 + 一次复审）才有时间线可言。
+  const timeline = isPrediction
+    ? []
+    : buildTimeline(judgment.createdAt, reviews);
 
   return (
     <main className="mx-auto w-full max-w-2xl space-y-6 p-8">
@@ -116,6 +144,13 @@ export default async function JudgmentDetailPage({
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {timeline.length >= 2 && (
+        <section>
+          <h2 className="mb-3 text-sm font-medium">置信度时间线</h2>
+          <StanceTimelineChart data={timeline} />
         </section>
       )}
 
