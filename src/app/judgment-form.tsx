@@ -1,17 +1,22 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import {
+  AlertTriangle,
+  Calendar,
+  Lightbulb,
+  Loader2,
+  Repeat,
+  Save,
+  Tag,
+  Target,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
 import {
@@ -36,6 +41,23 @@ type Props = {
   onCreated: (result: CreateSuccess) => void;
 };
 
+function FieldLabel({
+  htmlFor,
+  icon: Icon,
+  children,
+}: {
+  htmlFor: string;
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+}) {
+  return (
+    <Label htmlFor={htmlFor} className="flex items-center gap-1.5">
+      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+      {children}
+    </Label>
+  );
+}
+
 export function JudgmentForm({ initial, rawInput, onCreated }: Props) {
   const [state, formAction, pending] = useActionState<CreateResult, FormData>(
     createJudgmentAction,
@@ -45,6 +67,9 @@ export function JudgmentForm({ initial, rawInput, onCreated }: Props) {
 
   useEffect(() => {
     if (state?.ok) onCreated(state);
+    else if (state && !state.ok) {
+      toast.error("保存失败", { description: state.message });
+    }
   }, [state, onCreated]);
 
   return (
@@ -52,26 +77,22 @@ export function JudgmentForm({ initial, rawInput, onCreated }: Props) {
       <input type="hidden" name="rawInput" value={rawInput} />
       <input type="hidden" name="type" value={type} />
 
-      <div className="space-y-2">
-        <Label htmlFor="type">类型</Label>
-        <Select
-          value={type}
-          onValueChange={(v) =>
-            setType(v === "stance" ? "stance" : "prediction")
-          }
-        >
-          <SelectTrigger id="type" className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="prediction">预测（有截止日，可验证对错）</SelectItem>
-            <SelectItem value="stance">认知立场（持续看法，定期复审）</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <Tabs
+        value={type}
+        onValueChange={(v) =>
+          setType(v === "stance" ? "stance" : "prediction")
+        }
+      >
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="prediction">预测（有截止日）</TabsTrigger>
+          <TabsTrigger value="stance">认知立场（定期复审）</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       <div className="space-y-2">
-        <Label htmlFor="title">命题</Label>
+        <FieldLabel htmlFor="title" icon={Target}>
+          命题
+        </FieldLabel>
         <Input
           id="title"
           name="title"
@@ -82,7 +103,9 @@ export function JudgmentForm({ initial, rawInput, onCreated }: Props) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="reasoning">理由</Label>
+        <FieldLabel htmlFor="reasoning" icon={Lightbulb}>
+          理由
+        </FieldLabel>
         <Textarea
           id="reasoning"
           name="reasoning"
@@ -92,7 +115,9 @@ export function JudgmentForm({ initial, rawInput, onCreated }: Props) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="preMortem">事前验尸</Label>
+        <FieldLabel htmlFor="preMortem" icon={AlertTriangle}>
+          事前验尸
+        </FieldLabel>
         <Textarea
           id="preMortem"
           name="preMortem"
@@ -115,7 +140,9 @@ export function JudgmentForm({ initial, rawInput, onCreated }: Props) {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="domain">领域标签</Label>
+          <FieldLabel htmlFor="domain" icon={Tag}>
+            领域标签
+          </FieldLabel>
           <Input
             id="domain"
             name="domain"
@@ -127,7 +154,9 @@ export function JudgmentForm({ initial, rawInput, onCreated }: Props) {
 
       {type === "prediction" ? (
         <div className="space-y-2">
-          <Label htmlFor="deadline">验证截止日期</Label>
+          <FieldLabel htmlFor="deadline" icon={Calendar}>
+            验证截止日期
+          </FieldLabel>
           <Input
             id="deadline"
             name="deadline"
@@ -139,7 +168,9 @@ export function JudgmentForm({ initial, rawInput, onCreated }: Props) {
         </div>
       ) : (
         <div className="space-y-2">
-          <Label htmlFor="reviewIntervalDays">复审周期（天）</Label>
+          <FieldLabel htmlFor="reviewIntervalDays" icon={Repeat}>
+            复审周期（天）
+          </FieldLabel>
           <Input
             id="reviewIntervalDays"
             name="reviewIntervalDays"
@@ -151,14 +182,14 @@ export function JudgmentForm({ initial, rawInput, onCreated }: Props) {
         </div>
       )}
 
-      <div className="flex items-center gap-3">
-        <Button type="submit" disabled={pending}>
-          {pending ? "保存中…" : "记录判断"}
-        </Button>
-        {state && !state.ok && (
-          <span className="text-sm text-destructive">{state.message}</span>
+      <Button type="submit" disabled={pending}>
+        {pending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Save className="h-4 w-4" />
         )}
-      </div>
+        {pending ? "保存中…" : "记录判断"}
+      </Button>
     </form>
   );
 }

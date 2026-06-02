@@ -1,5 +1,20 @@
 import Link from "next/link";
+import {
+  Bell,
+  Calendar,
+  Inbox,
+  Search as SearchIcon,
+  Settings as SettingsIcon,
+} from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
+import {
+  statusBadgeVariant,
+  typeBadgeVariant,
+} from "@/lib/badge-variants";
 import { generateEmbedding, isEmbeddingConfigured } from "@/lib/embedding";
 import {
   expireStalePredictions,
@@ -11,17 +26,10 @@ import {
   type RelatedJudgment,
 } from "@/lib/judgments";
 import { STATUS_LABEL, TYPE_LABEL } from "@/lib/labels";
+import { cn } from "@/lib/utils";
 
 import { Filters } from "./filters";
 import { SearchBox } from "./search-box";
-
-function Tag({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-      {children}
-    </span>
-  );
-}
 
 function JudgmentRow({ item }: { item: JudgmentListItem }) {
   const dateText =
@@ -32,47 +40,62 @@ function JudgmentRow({ item }: { item: JudgmentListItem }) {
   return (
     <Link
       href={`/judgment/${item.id}`}
-      className="block rounded-lg border p-4 transition-colors hover:bg-accent"
+      className="block rounded-lg border bg-card p-4 transition-colors hover:border-foreground/30 hover:bg-accent"
     >
       <div className="mb-2 flex items-start justify-between gap-3">
         <span className="font-medium">{item.title}</span>
         {item.confidence != null && (
           <span className="shrink-0 text-sm text-muted-foreground">
-            置信度 {item.confidence}
+            <span className="font-medium text-foreground">
+              {item.confidence}
+            </span>
+            <span className="ml-0.5 text-xs">% 置信</span>
           </span>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Tag>{TYPE_LABEL[item.type] ?? item.type}</Tag>
-        <Tag>{STATUS_LABEL[item.status] ?? item.status}</Tag>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Badge variant={typeBadgeVariant(item.type)}>
+          {TYPE_LABEL[item.type] ?? item.type}
+        </Badge>
+        <Badge variant={statusBadgeVariant(item.status)}>
+          {STATUS_LABEL[item.status] ?? item.status}
+        </Badge>
         {item.domain.map((d) => (
-          <Tag key={d}>{d}</Tag>
+          <Badge key={d} variant="outline">
+            {d}
+          </Badge>
         ))}
         {dateText && (
-          <span className="text-xs text-muted-foreground">{dateText}</span>
+          <span className="ml-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+            <Calendar className="h-3 w-3" />
+            {dateText}
+          </span>
         )}
       </div>
     </Link>
   );
 }
 
-// 语义搜索结果行：RelatedJudgment 不含 domain/日期，额外展示相似度。
 function SearchResultRow({ item }: { item: RelatedJudgment }) {
   return (
     <Link
       href={`/judgment/${item.id}`}
-      className="block rounded-lg border p-4 transition-colors hover:bg-accent"
+      className="block rounded-lg border bg-card p-4 transition-colors hover:border-foreground/30 hover:bg-accent"
     >
       <div className="mb-2 flex items-start justify-between gap-3">
         <span className="font-medium">{item.title}</span>
-        <span className="shrink-0 text-sm text-muted-foreground">
+        <span className="shrink-0 text-xs text-muted-foreground">
           {item.confidence != null && `置信度 ${item.confidence} · `}
           相似 {Math.round(item.similarity * 100)}%
         </span>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Tag>{TYPE_LABEL[item.type] ?? item.type}</Tag>
-        <Tag>{STATUS_LABEL[item.status] ?? item.status}</Tag>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Badge variant={typeBadgeVariant(item.type)}>
+          {TYPE_LABEL[item.type] ?? item.type}
+        </Badge>
+        <Badge variant={statusBadgeVariant(item.status)}>
+          {STATUS_LABEL[item.status] ?? item.status}
+        </Badge>
       </div>
     </Link>
   );
@@ -80,7 +103,6 @@ function SearchResultRow({ item }: { item: RelatedJudgment }) {
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-// query 值可能是数组（如 ?type=a&type=b），统一取首个字符串。
 function first(v: string | string[] | undefined): string {
   return (Array.isArray(v) ? v[0] : v) ?? "";
 }
@@ -92,14 +114,12 @@ export default async function LibraryPage({
 }) {
   const sp = await searchParams;
   const q = first(sp.q).trim();
-  await expireStalePredictions(); // 延惰到期扫描
+  await expireStalePredictions();
 
-  // 搜索模式：有 q 时走语义搜索，与筛选/浏览互斥。
   if (q) {
     return (
-      <main className="mx-auto w-full max-w-3xl p-8">
-        <h1 className="mb-6 text-2xl font-semibold">判断库</h1>
-        {/* key=q：导航（含 Back/Forward）使 q 变化时重挂载，输入框同步到当前查询 */}
+      <main className="mx-auto w-full max-w-3xl px-6 py-10">
+        <PageHeader title="判断库" description={`搜索：${q}`} />
         <SearchBox key={q} initial={q} />
         <SearchResults q={q} />
       </main>
@@ -119,17 +139,25 @@ export default async function LibraryPage({
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-3xl p-8">
-      <h1 className="mb-6 text-2xl font-semibold">判断库</h1>
+    <main className="mx-auto w-full max-w-3xl px-6 py-10">
+      <PageHeader
+        title="判断库"
+        description={`共 ${items.length} 条${pending.length ? ` · 待处理 ${pending.length}` : ""}`}
+      />
 
       <SearchBox initial="" />
 
       {pending.length > 0 && (
-        <section className="mb-8">
-          <h2 className="mb-3 text-sm font-medium text-foreground">
+        <section
+          className={cn(
+            "mb-8 rounded-lg border border-foreground/15 bg-accent/30 p-4",
+          )}
+        >
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-medium">
+            <Bell className="h-4 w-4 text-foreground" />
             待处理 · {pending.length}
           </h2>
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {pending.map((item) => (
               <JudgmentRow key={item.id} item={item} />
             ))}
@@ -140,11 +168,23 @@ export default async function LibraryPage({
       <section>
         <Filters domains={domains} current={filters} />
         {items.length === 0 ? (
-          <p className="py-12 text-center text-sm text-muted-foreground">
-            没有符合条件的判断。
-          </p>
+          <EmptyState
+            icon={Inbox}
+            title="没有符合条件的判断"
+            description="试试清除筛选，或先去录入一条新判断。"
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                nativeButton={false}
+                render={<Link href="/" />}
+              >
+                去录入
+              </Button>
+            }
+          />
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {items.map((item) => (
               <JudgmentRow key={item.id} item={item} />
             ))}
@@ -155,47 +195,56 @@ export default async function LibraryPage({
   );
 }
 
-// 语义搜索结果区：未配置 embedding / 生成失败 / 无结果分别给出提示。
-async function SearchResults({ q }: { q: string }) {
-  // 配置读取也纳入错误边界：设置/DB 读取失败时给通用失败提示，而非让页面抛错。
+async function SearchResults({ q: _q }: { q: string }) {
   let configured: boolean;
   let results: RelatedJudgment[] | null = null;
   try {
     configured = await isEmbeddingConfigured();
     if (configured) {
-      const vector = await generateEmbedding(q);
+      const vector = await generateEmbedding(_q);
       results = await semanticSearch(vector);
     }
   } catch {
     return (
-      <p className="py-12 text-center text-sm text-destructive">
-        搜索失败，请稍后重试。
-      </p>
+      <EmptyState
+        icon={SearchIcon}
+        title="搜索失败"
+        description="请稍后重试，或检查 Embedding 配置是否正确。"
+      />
     );
   }
 
   if (!configured) {
     return (
-      <p className="py-12 text-center text-sm text-muted-foreground">
-        语义搜索需要先在
-        <Link href="/settings" className="mx-1 underline">
-          设置
-        </Link>
-        里配置 Embedding。
-      </p>
+      <EmptyState
+        icon={SettingsIcon}
+        title="语义搜索未配置"
+        description="需要在设置里配置 Embedding 模型后才能使用。"
+        action={
+          <Button
+            size="sm"
+            nativeButton={false}
+            render={<Link href="/settings" />}
+          >
+            去设置
+          </Button>
+        }
+      />
     );
   }
 
   if (!results || results.length === 0) {
     return (
-      <p className="py-12 text-center text-sm text-muted-foreground">
-        没有语义相关的判断（仅能搜到配置 Embedding 之后录入的判断）。
-      </p>
+      <EmptyState
+        icon={SearchIcon}
+        title="没有语义相关的判断"
+        description="仅能搜到配置 Embedding 之后录入的判断。"
+      />
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {results.map((item) => (
         <SearchResultRow key={item.id} item={item} />
       ))}

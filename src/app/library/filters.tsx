@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { FilterX } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -10,7 +12,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// 哨兵值：代表「不筛选」。用 __all__ 避免与用户自建领域标签冲突。
 const ALL = "__all__";
 
 const TYPE_OPTIONS = [
@@ -35,6 +36,7 @@ type Props = {
 
 export function Filters({ domains, current }: Props) {
   const router = useRouter();
+  const hasFilter = !!(current.type || current.status || current.domain);
 
   function update(key: "type" | "status" | "domain", value: string) {
     const next = { ...current, [key]: value === ALL ? "" : value };
@@ -47,7 +49,7 @@ export function Filters({ domains, current }: Props) {
   }
 
   return (
-    <div className="mb-4 flex flex-wrap gap-3">
+    <div className="mb-4 flex flex-wrap items-center gap-2">
       <FilterSelect
         placeholder="全部类型"
         value={current.type}
@@ -66,6 +68,16 @@ export function Filters({ domains, current }: Props) {
         options={domains.map((d) => ({ value: d, label: d }))}
         onChange={(v) => update("domain", v)}
       />
+      {hasFilter && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push("/library")}
+        >
+          <FilterX className="h-3.5 w-3.5" />
+          清除筛选
+        </Button>
+      )}
     </div>
   );
 }
@@ -81,14 +93,23 @@ function FilterSelect({
   options: { value: string; label: string }[];
   onChange: (value: string) => void;
 }) {
+  // base-ui 的 Select.Value 默认在选中时显示原始 value，需要用渲染函数把 value 映射成 label。
+  // 同时把空状态显式映射为 placeholder（避免 __all__ 字面量泄漏）。
+  const allOptions = [{ value: ALL, label: placeholder }, ...options];
+  const displayValue = value || ALL;
+
   return (
-    <Select value={value || ALL} onValueChange={(v) => onChange(v ?? ALL)}>
-      <SelectTrigger className="w-40">
-        <SelectValue placeholder={placeholder} />
+    <Select value={displayValue} onValueChange={(v) => onChange(v ?? ALL)}>
+      <SelectTrigger className="w-36">
+        <SelectValue placeholder={placeholder}>
+          {(v) =>
+            allOptions.find((o) => o.value === (v as string))?.label ??
+            placeholder
+          }
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={ALL}>{placeholder}</SelectItem>
-        {options.map((o) => (
+        {allOptions.map((o) => (
           <SelectItem key={o.value} value={o.value}>
             {o.label}
           </SelectItem>

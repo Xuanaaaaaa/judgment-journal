@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+
+import { AppShell } from "@/components/app-shell";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,26 +21,19 @@ export default function RootLayout({
   return (
     <html
       lang="zh-CN"
+      suppressHydrationWarning
       className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <header className="border-b">
-          <nav className="mx-auto flex w-full max-w-3xl items-center gap-6 px-8 py-3 text-sm">
-            <Link href="/" className="font-semibold">
-              判断日志
-            </Link>
-            <Link href="/library" className="text-muted-foreground hover:text-foreground">
-              判断库
-            </Link>
-            <Link href="/dashboard" className="text-muted-foreground hover:text-foreground">
-              仪表盘
-            </Link>
-            <Link href="/settings" className="text-muted-foreground hover:text-foreground">
-              设置
-            </Link>
-          </nav>
-        </header>
-        {children}
+      <body className="min-h-full bg-background text-foreground">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AppShell>{children}</AppShell>
+          <Toaster richColors position="bottom-right" />
+        </ThemeProvider>
       </body>
     </html>
   );

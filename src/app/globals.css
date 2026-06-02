@@ -1,3 +1,13 @@
+/*
+ * 设计规范（Judgment Journal）
+ * - 信息密度：舒适。卡片化为主，间距偏松。
+ * - 圆角：基准 0.625rem（var(--radius)）。Badge 用胶囊形（rounded-4xl，由 shadcn 内置）。
+ * - 主区宽度：max-w-2xl=42rem（录入/详情），max-w-3xl=48rem（列表/仪表盘）。
+ * - 颜色：完全走 token，禁止裸写颜色（如 text-gray-500 → 用 text-muted-foreground）。
+ * - 主题：浅/深两套，token 已就绪；切换由 next-themes 在 <html class="dark"> 控制。
+ * - 图表配色：chart-1..5 在浅/深下各自定义，深色覆盖在 .dark 里。
+ */
+
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";

@@ -1,64 +1,85 @@
-import Link from "next/link";
+import { CheckSquare, RotateCw } from "lucide-react";
 
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { getDashboardData } from "@/lib/calibration";
 import { expireStalePredictions } from "@/lib/judgments";
 
 import { BrierTrendChart, CalibrationChart, DomainChart } from "./charts";
 
-// 读实时 DB 数据，禁止构建时静态预渲染。
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  await expireStalePredictions(); // 延惰到期扫描，必须在统计待处理/校准前执行
+  await expireStalePredictions();
   const { buckets, domains, pending, verifiedCount, brierTrend } =
     await getDashboardData();
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold">仪表盘</h1>
+    <main className="mx-auto w-full max-w-3xl space-y-8 px-6 py-10">
+      <PageHeader title="仪表盘" description="你的判断质量在向哪边走？" />
 
       <section className="grid grid-cols-2 gap-4">
-        <Link
+        <StatCard
+          label="待验证的预测"
+          value={pending.duePredictions}
+          icon={CheckSquare}
           href="/library?type=prediction&status=pending&due=1"
-          className="rounded-lg border p-4 transition-colors hover:bg-accent"
-        >
-          <div className="text-3xl font-semibold">{pending.duePredictions}</div>
-          <div className="mt-1 text-sm text-muted-foreground">待验证的预测</div>
-        </Link>
-        <Link
+          hint={pending.duePredictions > 0 ? "点击查看清单" : "暂无到期项"}
+        />
+        <StatCard
+          label="待复审的立场"
+          value={pending.dueStances}
+          icon={RotateCw}
           href="/library?type=stance&status=active&due=1"
-          className="rounded-lg border p-4 transition-colors hover:bg-accent"
-        >
-          <div className="text-3xl font-semibold">{pending.dueStances}</div>
-          <div className="mt-1 text-sm text-muted-foreground">待复审的立场</div>
-        </Link>
+          hint={pending.dueStances > 0 ? "点击查看清单" : "暂无到期项"}
+        />
       </section>
 
-      <section>
-        <div className="mb-1 flex items-baseline justify-between">
-          <h2 className="font-medium">校准曲线</h2>
-          <span className="text-xs text-muted-foreground">
-            样本 {verifiedCount} 条
-          </span>
-        </div>
-        <p className="mb-3 text-xs text-muted-foreground">
-          点在对角线上方=偏保守，下方=过度自信。
-        </p>
-        <CalibrationChart buckets={buckets} />
-      </section>
+      <Card>
+        <CardHeader>
+          <div className="flex items-baseline justify-between">
+            <CardTitle>校准曲线</CardTitle>
+            <span className="text-xs text-muted-foreground">
+              样本 {verifiedCount} 条
+            </span>
+          </div>
+          <CardDescription>
+            点在对角线上方 = 偏保守；下方 = 过度自信。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CalibrationChart buckets={buckets} />
+        </CardContent>
+      </Card>
 
-      <section>
-        <h2 className="mb-3 font-medium">各领域准确率</h2>
-        <DomainChart domains={domains} />
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>各领域准确率</CardTitle>
+          <CardDescription>按你的领域标签分组统计。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DomainChart domains={domains} />
+        </CardContent>
+      </Card>
 
-      <section>
-        <h2 className="mb-1 font-medium">Brier 趋势</h2>
-        <p className="mb-3 text-xs text-muted-foreground">
-          累计平均 Brier 分，越低越准；下降说明校准在变好。
-        </p>
-        <BrierTrendChart data={brierTrend} />
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Brier 趋势</CardTitle>
+          <CardDescription>
+            累计平均 Brier 分，越低越准；下降说明校准在变好。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BrierTrendChart data={brierTrend} />
+        </CardContent>
+      </Card>
     </main>
   );
 }
