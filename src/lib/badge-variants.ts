@@ -5,7 +5,8 @@ export type BadgeVariant =
   | "secondary"
   | "destructive"
   | "outline"
-  | "ghost";
+  | "ghost"
+  | "success";
 
 export function typeBadgeVariant(type: string): BadgeVariant {
   return type === "prediction" ? "default" : "secondary";
@@ -14,7 +15,7 @@ export function typeBadgeVariant(type: string): BadgeVariant {
 export function statusBadgeVariant(status: string): BadgeVariant {
   switch (status) {
     case "verified_correct":
-      return "default";
+      return "success";
     case "verified_wrong":
       return "destructive";
     case "pending":

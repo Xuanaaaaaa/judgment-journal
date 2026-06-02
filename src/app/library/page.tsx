@@ -26,7 +26,6 @@ import {
   type RelatedJudgment,
 } from "@/lib/judgments";
 import { STATUS_LABEL, TYPE_LABEL } from "@/lib/labels";
-import { cn } from "@/lib/utils";
 
 import { Filters } from "./filters";
 import { SearchBox } from "./search-box";
@@ -148,13 +147,9 @@ export default async function LibraryPage({
       <SearchBox initial="" />
 
       {pending.length > 0 && (
-        <section
-          className={cn(
-            "mb-8 rounded-lg border border-foreground/15 bg-accent/30 p-4",
-          )}
-        >
+        <section className="mb-8 rounded-xl border border-border bg-accent p-5">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-medium">
-            <Bell className="h-4 w-4 text-foreground" />
+            <Bell className="h-4 w-4 text-primary" />
             待处理 · {pending.length}
           </h2>
           <div className="space-y-2.5">

@@ -15,15 +15,17 @@ export function StatCard({ label, value, icon: Icon, href, hint }: Props) {
   const inner = (
     <div
       className={cn(
-        "flex h-full flex-col gap-2 rounded-lg border bg-card p-5 transition-colors",
-        href && "hover:border-foreground/30 hover:bg-accent",
+        "flex h-full flex-col gap-3 rounded-xl bg-card p-6 ring-1 ring-foreground/5 transition-colors",
+        href && "hover:ring-primary/40 hover:bg-accent",
       )}
     >
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>{label}</span>
         {Icon && <Icon className="h-4 w-4" />}
       </div>
-      <div className="text-3xl font-semibold tracking-tight">{value}</div>
+      <div className="font-display text-4xl text-foreground sm:text-5xl">
+        {value}
+      </div>
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   );

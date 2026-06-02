@@ -1,11 +1,14 @@
 /*
- * 设计规范（Judgment Journal）
- * - 信息密度：舒适。卡片化为主，间距偏松。
- * - 圆角：基准 0.625rem（var(--radius)）。Badge 用胶囊形（rounded-4xl，由 shadcn 内置）。
- * - 主区宽度：max-w-2xl=42rem（录入/详情），max-w-3xl=48rem（列表/仪表盘）。
- * - 颜色：完全走 token，禁止裸写颜色（如 text-gray-500 → 用 text-muted-foreground）。
- * - 主题：浅/深两套，token 已就绪；切换由 next-themes 在 <html class="dark"> 控制。
- * - 图表配色：chart-1..5 在浅/深下各自定义，深色覆盖在 .dark 里。
+ * 设计规范（Judgment Journal · Anthropic Cream/Coral 风格）
+ * - 画布：warm cream（#faf9f5），故意区别于冷灰白；深色用 warm dark（#181715）。
+ * - 主色：Anthropic coral（#cc785c），按钮/激活态/焦点环统一使用。
+ * - 字体：标题用系统衬线栈（Iowan Old Style / Hoefler Text / Garamond / Georgia），
+ *   字号偏大、字重 400、字距偏紧（tracking-tight），呈编辑性气质；
+ *   正文/UI 用 Geist Sans（humanist），代码用 Geist Mono。
+ * - 间距：tailwind 默认 4px 基；section 间距 96px（py-24）；卡片内 32px。
+ * - 主区宽度：max-w-2xl（录入/详情），max-w-3xl（列表/仪表盘），max-w-5xl（顶栏）。
+ * - 颜色：完全走 token，禁止裸色（text-gray-500 → text-muted-foreground）。
+ * - 图表配色：chart-1..5 在浅/深各自定义。
  */
 
 @import "tailwindcss";
@@ -16,77 +19,87 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+
+  /* 表面 */
+  --background: #faf9f5;          /* canvas cream */
+  --foreground: #141413;          /* warm ink */
+  --card: #efe9de;                /* surface-card */
+  --card-foreground: #141413;
+  --popover: #ffffff;             /* 浮层在 cream 上提一档到白 */
+  --popover-foreground: #141413;
+  --secondary: #f5f0e8;           /* surface-soft */
+  --secondary-foreground: #141413;
+  --muted: #f5f0e8;
+  --muted-foreground: #6c6a64;
+  --accent: #e8e0d2;              /* cream-strong（强调段） */
+  --accent-foreground: #141413;
+
+  /* 品牌主色 */
+  --primary: #cc785c;             /* Anthropic coral */
+  --primary-foreground: #1a0f0a;  /* 暖深字 on coral：~5.5:1 过 AA（白字仅 3.3:1） */
+  --primary-active: #a9583e;      /* 按压/悬浮深态 */
+
+  /* 语义 */
+  --destructive: #c64545;
+  --success: #5db872;
+  --success-foreground: #2f7d45;  /* 深绿，在 success/15 浅底上 ≥4.5:1 */
+  --warning: #d4a017;
+
+  /* 边/输入/焦点 */
+  --border: #e6dfd8;              /* hairline */
+  --input: #e6dfd8;
+  --ring: #cc785c;
+
+  /* 图表（warm 调色：coral / teal / amber / muted / ink） */
+  --chart-1: #cc785c;
+  --chart-2: #5db8a6;
+  --chart-3: #e8a55a;
+  --chart-4: #6c6a64;
+  --chart-5: #141413;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #181715;          /* surface-dark */
+  --foreground: #faf9f5;
+  --card: #1f1e1b;                /* surface-dark-soft */
+  --card-foreground: #faf9f5;
+  --popover: #252320;             /* surface-dark-elevated */
+  --popover-foreground: #faf9f5;
+  --secondary: #252320;
+  --secondary-foreground: #faf9f5;
+  --muted: #1f1e1b;
+  --muted-foreground: #a09d96;
+  --accent: #252320;
+  --accent-foreground: #faf9f5;
+
+  --primary: #d9876d;             /* coral 在深底上微亮一档保对比 */
+  --primary-foreground: #1a0f0a;
+  --primary-active: #b96249;
+
+  --destructive: #d96565;
+  --success: #6fc985;
+  --success-foreground: #a8e8b8;  /* 浅绿，在 success/20 深底上 ≥4.5:1 */
+  --warning: #e0b337;
+
+  --border: #2b2926;
+  --input: #2b2926;
+  --ring: #d9876d;
+
+  --chart-1: #d9876d;
+  --chart-2: #6dc8b6;
+  --chart-3: #f0b870;
+  --chart-4: #a09d96;
+  --chart-5: #faf9f5;
 }
 
 @theme inline {
+  /* 字体：display 系统衬线栈；sans/mono 维持 next/font 本地 Geist */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-display:
+    "Iowan Old Style", "Hoefler Text", "Apple Garamond", "Tiempos Headline",
+    "EB Garamond", Garamond, Georgia, "Times New Roman", serif;
+  --font-heading: var(--font-sans);   /* shadcn 内部 card/dialog title 用 sans 即可 */
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -101,6 +114,7 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-active: var(--primary-active);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -108,6 +122,9 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -116,14 +133,6 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
 }
 
 @layer base {
@@ -132,5 +141,12 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv11", "kern";
+  }
+  /* 衬线大标题：负字距+正常字重，呈现 Copernicus 气质 */
+  .font-display {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: -0.015em;
   }
 }

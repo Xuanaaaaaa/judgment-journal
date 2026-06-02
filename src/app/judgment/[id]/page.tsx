@@ -162,7 +162,7 @@ export default async function JudgmentDetailPage({
               </Badge>
             ))}
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="font-display text-3xl text-foreground sm:text-4xl">
             {judgment.title}
           </h1>
         </div>
@@ -235,7 +235,7 @@ export default async function JudgmentDetailPage({
                         <div className="mb-1 flex items-center justify-between">
                           <span className="inline-flex items-center gap-1.5 text-xs">
                             {correct ? (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-foreground" />
+                              <CheckCircle2 className="h-3.5 w-3.5 text-success" />
                             ) : (
                               <XCircle className="h-3.5 w-3.5 text-destructive" />
                             )}

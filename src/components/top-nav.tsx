@@ -21,7 +21,7 @@ function isActive(pathname: string, href: string) {
 export function TopNav() {
   const pathname = usePathname();
   return (
-    <nav className="flex items-center gap-1 text-sm">
+    <nav className="relative flex h-full items-center gap-1 self-stretch text-sm">
       {ITEMS.map(({ href, label, icon: Icon }) => {
         const active = isActive(pathname, href);
         return (
@@ -29,16 +29,16 @@ export function TopNav() {
             key={href}
             href={href}
             className={cn(
-              "relative inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors",
+              "relative inline-flex h-full items-center gap-1.5 px-3 transition-colors",
               active
                 ? "text-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             <Icon className="h-4 w-4" />
             {label}
             {active && (
-              <span className="absolute inset-x-2 -bottom-[13px] h-0.5 rounded-full bg-foreground" />
+              <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-primary" />
             )}
           </Link>
         );

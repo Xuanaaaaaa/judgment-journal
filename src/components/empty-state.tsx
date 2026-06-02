@@ -9,9 +9,9 @@ type Props = {
 
 export function EmptyState({ icon: Icon, title, description, action }: Props) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-14 text-center">
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/70 bg-card/40 py-16 text-center">
       {Icon && (
-        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-accent text-muted-foreground">
           <Icon className="h-5 w-5" />
         </div>
       )}

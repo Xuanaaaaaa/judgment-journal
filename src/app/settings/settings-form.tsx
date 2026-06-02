@@ -54,12 +54,12 @@ type Props = {
 
 function ConfigBadge({ configured }: { configured: boolean }) {
   return configured ? (
-    <Badge variant="outline" className="gap-1 text-foreground">
+    <Badge variant="success" className="gap-1">
       <CheckCircle2 className="h-3 w-3" />
       已配置
     </Badge>
   ) : (
-    <Badge variant="secondary" className="gap-1">
+    <Badge variant="outline" className="gap-1 text-muted-foreground">
       <AlertCircle className="h-3 w-3" />
       未配置
     </Badge>
